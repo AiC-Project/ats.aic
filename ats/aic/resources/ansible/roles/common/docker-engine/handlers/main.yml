@@ -1,0 +1,14 @@
+---
+# vim: set ft=ansible:
+
+- name: reload systemd
+  become: yes
+  become_user: root
+  command: systemctl daemon-reload
+
+- name: restart docker
+  become: yes
+  become_user: root
+  service:
+    name: docker
+    state: restarted

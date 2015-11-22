@@ -1,0 +1,9 @@
+[program:ats-auth]
+user = {{deploy_user}}
+command = {{bin}}/ats-auth-server
+environment = {{service_environment | to_supervisor_environment}}
+autostart = true
+autorestart = true
+stdout_logfile = {{log_dir}}/%(program_name)s.log
+redirect_stderr = true
+umask = 077

@@ -1,0 +1,5 @@
+---
+# vim: set ft=ansible:
+
+build_dir: "{{src_dir}}/player"
+

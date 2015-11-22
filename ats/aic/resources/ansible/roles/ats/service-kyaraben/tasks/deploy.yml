@@ -1,0 +1,54 @@
+---
+# vim: set ft=ansible:
+
+- name: install virtualenv
+  command: python3.5 -m venv {{venv}}
+  args:
+    creates: "{{venv}}"
+
+- name: clone repository
+  git:
+    repo: "{{git.ats[item.replace('.', '_')].repo}}"
+    version: "{{git.ats[item.replace('.', '_')].version}}"
+    dest: "{{src_dir}}/{{item}}"
+    key_file: "{{git_key_remote}}"
+  with_items:
+    - ats.client
+    - ats.util
+    - ats.kyaraben
+
+- name: install wheel
+  command: "{{bin}}/pip install wheel"
+
+- name: install service
+  command: "{{bin}}/pip install -r requirements/dev.txt"
+  args:
+    chdir: "{{src_dir}}/ats.kyaraben"
+
+- name: supervisor configuration
+  become_user: root
+  template:
+    src: "{{item}}.conf.j2"
+    dest: /etc/supervisor/conf.d/{{item}}.conf
+    mode: 0o600
+  with_items:
+    - ats-kyaraben-server
+    - ats-kyaraben-worker
+    - ats-kyaraben-retry
+  notify:
+    - reload supervisor
+
+- name: server environment (for dev/debug)
+  copy:
+    content: "#!/bin/sh\n\n. {{bin}}/activate\n\n{{service_environment | to_sh_environment}}"
+    dest: "{{services_dir}}/kyaraben.sh"
+    mode: 0o600
+
+- name: client configuration
+  template:
+    src: "{{item}}.j2"
+    dest: "{{services_dir}}/{{item}}"
+    mode: 0o600
+  with_items:
+    - kyaraben-client.ini
+

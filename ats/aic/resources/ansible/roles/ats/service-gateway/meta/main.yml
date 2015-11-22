@@ -1,0 +1,8 @@
+---
+# vim: set ft=ansible:
+
+dependencies:
+  - { role: ats/supervisor }
+  - { role: ats/postgres }
+  - { role: common/git }
+

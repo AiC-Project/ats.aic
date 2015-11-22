@@ -1,0 +1,38 @@
+---
+# vim: set ft=ansible:
+
+- name: mkdir workspace directory
+  file:
+    path: "{{workspace}}"
+    state: directory
+    mode: 0o700
+
+- set_fact:
+    etc_dir: "{{workspace}}/etc"
+    src_dir: "{{workspace}}/src"
+
+- name: copy workspace configuration
+  copy:
+    src: "{{local_etc}}/"
+    dest: "{{etc_dir}}"
+    mode: 0o400
+    directory_mode: 0o700
+
+- name: mkdir source directory
+  file:
+    path: "{{item}}"
+    state: directory
+    mode: 0o700
+  with_items:
+    - "{{src_dir}}"
+
+- name: update the OS_CACERT path
+  become_user: root
+  lineinfile:
+    dest: "{{etc_dir}}/{{openrc}}"
+    line: export OS_CACERT={{OS_CACERT_dst}}
+    regexp: ^export OS_CACERT=
+    state: present
+    create: false
+  when: OS_CACERT_src != ''
+

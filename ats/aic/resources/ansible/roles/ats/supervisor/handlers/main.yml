@@ -1,0 +1,11 @@
+---
+# vim: set ft=ansible:
+
+- name: restart supervisor
+  become: yes
+  become_user: root
+  service:
+    name: supervisor
+    state: restarted
+    enabled: yes
+

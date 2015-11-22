@@ -1,0 +1,71 @@
+---
+# vim: set ft=ansible:
+
+- name: Create CA key
+  shell: umask 077; openssl genrsa -out ca-key.pem 4096
+  args:
+    chdir: "{{secrets_docker_tls}}"
+    creates: "{{secrets_docker_tls}}/ca-key.pem"
+
+- name: Create CA info
+  shell: umask 077; openssl req -new -x509 -days 365 -key ca-key.pem -sha256 -out ca.pem -subj '/C=FR/O=AiC/OU=AiC/CN={{sdl_hostname}}'
+  args:
+    chdir: "{{secrets_docker_tls}}"
+    creates: "{{secrets_docker_tls}}/ca.pem"
+
+- name: Create server key
+  shell: umask 077; openssl genrsa -out server-key.pem 4096
+  args:
+    chdir: "{{secrets_docker_tls}}"
+    creates: "{{secrets_docker_tls}}/server-key.pem"
+
+- name: Create server certificate request
+  shell: umask 077; openssl req -subj "/CN={{sdl_hostname}}" -sha256 -new -key server-key.pem -out server.csr
+  args:
+    chdir: "{{secrets_docker_tls}}"
+    creates: "{{secrets_docker_tls}}/server.csr"
+
+- name: Create SAN file for servert cert
+  template:
+    src: server-extfile.cnf.j2
+    dest: "{{secrets_docker_tls}}/server-extfile.cnf"
+
+- name: Sign server info with CA key
+  shell: umask 077; openssl x509 -req -days 365 -sha256 -in server.csr -CA ca.pem -CAkey ca-key.pem -CAcreateserial -out server-cert.pem -extfile server-extfile.cnf
+  args:
+    chdir: "{{secrets_docker_tls}}"
+    creates: "{{secrets_docker_tls}}/server-cert.pem"
+
+- name: Create client key
+  shell: umask 077; openssl genrsa -out client-key.pem 4096
+  args:
+    chdir: "{{secrets_docker_tls}}"
+    creates: "{{secrets_docker_tls}}/client-key.pem"
+
+- name: Create client cert
+  shell: umask 077; openssl req -subj '/CN=client' -new -key client-key.pem -out client.csr
+  args:
+    chdir: "{{secrets_docker_tls}}"
+    creates: "{{secrets_docker_tls}}/client.csr"
+
+- name: Create ext file for client cert
+  template:
+    src: client-extfile.cnf.j2
+    dest: "{{secrets_docker_tls}}/client-extfile.cnf"
+
+- name: Sign client cert
+  shell: umask 077; openssl x509 -req -days 365 -in client.csr -CA ca.pem -CAkey ca-key.pem -CAcreateserial -out client-cert.pem -extfile client-extfile.cnf
+  args:
+    chdir: "{{secrets_docker_tls}}"
+    creates: "{{secrets_docker_tls}}/client-cert.pem"
+
+- name: remove tmp files
+  file:
+    name: "{{secrets_docker_tls}}/{{item}}"
+    state: absent
+  with_items:
+    - client-extfile.cnf
+    - server-extfile.cnf
+    - server.csr
+    - client.csr
+

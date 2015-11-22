@@ -1,0 +1,37 @@
+---
+# vim: set ft=ansible:
+
+venv: "{{services_dir}}/kyaraben"
+bin: "{{venv}}/bin"
+
+default_environment:
+  KYARABEN_LOG_JSONFORMAT: True
+  KYARABEN_SERVER_LISTEN_ADDRESS: "{{ services.ats_kyaraben.address }}"
+  KYARABEN_SERVER_LISTEN_PORT: "{{ services.ats_kyaraben.port }}"
+  KYARABEN_AMQP_HOSTNAME: "{{services.amqp.address}}"
+  KYARABEN_AMQP_ADMIN_USERNAME: kyaraben
+  KYARABEN_AMQP_ADMIN_PASSWORD: "{{ lookup('password', secrets_dir + '/amqp/kyaraben length=32') }}"
+  KYARABEN_OPENSTACK_OS_AUTH_URL: "{{ services.openstack.orchestration.OS_AUTH_URL }}"
+  KYARABEN_OPENSTACK_INSECURE: False
+  KYARABEN_OPENSTACK_OS_CACERT: "{{ services.openstack.orchestration.OS_CACERT }}"
+  KYARABEN_OPENSTACK_OS_TENANT_NAME: "{{ services.openstack.orchestration.OS_TENANT_NAME }}"
+  KYARABEN_OPENSTACK_OS_USERNAME: ats.kyaraben
+  KYARABEN_OPENSTACK_OS_PASSWORD: ""
+  KYARABEN_OPENSTACK_FLOATING_NET: "{{ floating_net }}"
+  KYARABEN_ORCHESTRATION_STACKPREFIX: "{{cluster}}"
+  # Must use the IP address: nginx/wss proxy does not work with hostnames
+  KYARABEN_ORCHESTRATION_NOVNC_HOST: "{{ hostvars['sdl']['ip_service'] }}"
+  KYARABEN_DOCKER_HOST: tcp://{{sdl_hostname}}:2376
+  KYARABEN_DOCKER_TLS_VERIFY: "true"
+  # http://www.postgresql.org/docs/9.5/static/libpq-connect.html#LIBPQ-CONNSTRING
+  KYARABEN_DB_DSN: host=/var/run/postgresql dbname=kyaraben user=kyaraben password={{ lookup('password', secrets_dir + '/postgres/kyaraben chars=ascii_letters,digits') }}
+  KYARABEN_QUOTA_VM_LIVE_MAX: 3
+  KYARABEN_QUOTA_VM_ASYNC_MAX: 3
+  KYARABEN_OPENSTACK_TEMPLATE: android.yaml
+  KYARABEN_WORKER_HEAT_POLL_INTERVAL: 6
+  KYARABEN_RETRY_DELAY_MIN: 1
+  KYARABEN_RETRY_DELAY_MAX: 30
+  KYARABEN_RETRY_FAIL_TIMEOUT: 86400
+  KYARABEN_MEDIA_TEMPDIR: /tmp
+
+service_environment: "{{default_environment | combine(override_environment.ats_kyaraben)}}"

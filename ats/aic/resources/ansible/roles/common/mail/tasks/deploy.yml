@@ -1,0 +1,25 @@
+---
+# vim: set ft=ansible:
+
+- name: alias for mail to root
+  become: yes
+  become_user: root
+  lineinfile:
+    dest: /etc/aliases
+    regexp: "^root:"
+    line: "root: {{root_alias}}"
+    state: present
+  when: root_alias and root_alias.strip() != ''
+  notify: newaliases
+
+- name: alias for mail to postgres
+  become: yes
+  become_user: root
+  lineinfile:
+    dest: /etc/aliases
+    regexp: "^postgres:"
+    line: "postgres: {{root_alias}}"
+    state: present
+  when: root_alias and root_alias.strip() != ''
+  notify: newaliases
+

@@ -1,0 +1,19 @@
+---
+# vim: set ft=ansible:
+
+- name: supervisor configuration
+  become: yes
+  become_user: root
+  template:
+    src: supervisord.conf.j2
+    dest: /etc/supervisor/supervisord.conf
+    mode: 0o600
+  notify:
+    - restart supervisor
+
+- name: enable supervisor
+  # should already be enabled by the service module, but was not
+  become: yes
+  become_user: root
+  command: systemctl enable supervisor.service
+

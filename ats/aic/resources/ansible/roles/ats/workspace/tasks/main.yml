@@ -1,0 +1,57 @@
+---
+# vim: set ft=ansible:
+
+- set_fact:
+    etc_dir: "{{workspace}}/etc"
+    log_dir: "{{workspace}}/log"
+    services_dir: "{{workspace}}/services"
+    src_dir: "{{workspace}}/src"
+    OS_CACERT_src: "{{ lookup('env', 'OS_CACERT') }}"
+
+- name: mkdir workspace directories
+  file:
+    path: "{{item}}"
+    state: directory
+    mode: 0o700
+  with_items:
+    - "{{workspace}}"
+    - "{{etc_dir}}"
+    - "{{log_dir}}"
+    - "{{services_dir}}"
+    - "{{src_dir}}"
+
+# cannot set umask in supervisor
+- name: deny world read access for logs
+  command: setfacl -d -m  o:0 {{log_dir}}
+
+- name: copy openrc file
+  copy:
+    src: "{{local_etc}}/{{openrc}}"
+    dest: "{{etc_dir}}"
+    mode: 0o400
+
+- name: check whether OpenStack requires OS_CACERT
+  become: no
+  local_action: command grep -q "^export OS_CACERT" "{{local_etc}}/{{openrc}}"
+  register: check_cacert
+  always_run: True
+  ignore_errors: True
+  changed_when: False
+
+- name: set certificate dest
+  set_fact:
+    OS_CACERT_dst: "{{etc_dir}}/{{ OS_CACERT_src | basename }}"
+  when: check_cacert.rc == 0
+
+- name: unset certificate dest
+  set_fact:
+    OS_CACERT_dst:
+  when: check_cacert.rc != 0
+
+- name: copy OS_CACERT
+  copy:
+    src: "{{OS_CACERT_src}}"
+    dest: "{{OS_CACERT_dst}}"
+    mode: 0o400
+  when: check_cacert.rc == 0
+

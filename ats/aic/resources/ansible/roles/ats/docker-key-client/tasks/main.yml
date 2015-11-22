@@ -1,0 +1,26 @@
+---
+# vim: set ft=ansible
+
+- name: Create .docker dir
+  file:
+    path: "{{docker_dir}}"
+    state: directory
+    mode: 0o700
+
+- name: Copy client certificate
+  copy:
+    src: "{{secrets_docker_tls}}/client-cert.pem"
+    dest: "{{docker_dir}}/cert.pem"
+    mode: 0o400
+
+- name: Copy client key
+  copy:
+    src: "{{secrets_docker_tls}}/client-key.pem"
+    dest: "{{docker_dir}}/key.pem"
+    mode: 0o400
+
+- name: Copy CA cert
+  copy:
+    src: "{{secrets_docker_tls}}/ca.pem"
+    dest: "{{docker_dir}}/ca.pem"
+    mode: 0o400

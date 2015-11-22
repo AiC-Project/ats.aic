@@ -1,0 +1,19 @@
+---
+# vim: set ft=ansible:
+
+# Stop the play if an apt-get process is running on the remote system.
+
+# This would be better implemented on the Heat side, as a WaitCondition:
+# https://github.com/openstack/heat-templates/blob/master/hot/native_waitcondition.yaml
+
+
+- name: check if apt or apt-get are running
+  command: "ps -C apt-get -C apt -o pid="
+  ignore_errors: yes
+  register: ps
+
+- name: are they?
+  fail:
+    msg: The remote system is still running an apt-get command. Please retry when it's finished.
+  when: "ps.stdout != ''"
+

@@ -1,0 +1,5 @@
+---
+# vim: set ft=ansible:
+
+service: "{{services_dir}}/frontend"
+

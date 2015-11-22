@@ -1,0 +1,35 @@
+---
+# vim: set ft=ansible:
+
+- name: create directories
+  file:
+    path: "{{item}}"
+    state: directory
+    mode: 0o700
+  with_items:
+    - "{{service}}"
+
+- name: clone repository
+  git:
+    repo: "{{git.ats.ats_frontend.repo}}"
+    version: "{{git.ats.ats_frontend.version}}"
+    dest: "{{service}}"
+    key_file: "{{git_key_remote}}"
+    recursive: yes
+
+- name: install npm dependencies
+  command: npm install --production
+  args:
+    chdir: "{{service}}"
+
+- name: build frontend
+  command: npm run build
+  args:
+    chdir: "{{service}}"
+
+- name: configure frontend
+  template:
+    src: "config.json.j2"
+    dest: "{{service}}/build/config.json"
+    mode: 0o600
+

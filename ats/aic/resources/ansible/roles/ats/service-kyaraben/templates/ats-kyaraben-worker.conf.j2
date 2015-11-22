@@ -1,0 +1,12 @@
+[program:ats-kyaraben-worker]
+user = {{deploy_user}}
+command = {{bin}}/kyaraben-worker
+numprocs = {{worker_numprocs}}
+process_name = %(program_name)s-%(process_num)d
+numprocs_start = 1
+environment = {{service_environment | to_supervisor_environment}}
+autostart = true
+autorestart = true
+stdout_logfile = {{log_dir}}/%(program_name)s-%(process_num)d.log
+redirect_stderr = true
+umask = 077

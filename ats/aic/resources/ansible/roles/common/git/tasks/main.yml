@@ -1,0 +1,42 @@
+---
+# vim: set ft=ansible:
+
+- name: configure git
+  template:
+    src: gitconfig.j2
+    dest: "/home/{{deploy_user}}/.gitconfig"
+    mode: 0o600
+
+- name: mkdir ~/.ssh
+  file:
+    path: "/home/{{deploy_user}}/.ssh"
+    state: directory
+    mode: 0o700
+
+- name: set git_key path
+  set_fact:
+    git_key_remote: "/home/{{deploy_user}}/.ssh/git.rnd.alterway.fr"
+
+# could use https://github.com/gaqzi/ansible-ssh-config
+
+# for the interactive shell
+- name: create ssh_config for alterway.fr
+  template:
+    src: ssh_config.j2
+    dest: "/home/{{deploy_user}}/.ssh/config"
+    mode: 0o600
+
+- name: ensure git.rnd.alterway.fr is a known host
+  lineinfile:
+    dest: /home/{{deploy_user}}/.ssh/known_hosts
+    create: yes
+    state: present
+    line: "{{ lookup('pipe', 'ssh-keyscan -t rsa git.rnd.alterway.fr') }}"
+    regexp: "^git\\.rnd\\.alterway\\.fr"
+
+- name: install deployment key
+  copy:
+    src: "{{local_etc}}/{{git_key}}"
+    dest: "{{git_key_remote}}"
+    mode: 0o400
+

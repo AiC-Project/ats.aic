@@ -1,0 +1,25 @@
+---
+# vim: set ft=ansible:
+
+- name: clone player code
+  git:
+    repo: "{{git.sdl.player.repo}}"
+    version: "{{git.sdl.player.version}}"
+    dest: "{{build_dir}}"
+    key_file: "{{git_key_remote}}"
+
+- name: cmake .
+  command: cmake .
+  args:
+    chdir: "{{build_dir}}/sdl"
+
+- name: make clean
+  command: make clean
+  args:
+    chdir: "{{build_dir}}/sdl"
+
+- name: make
+  command: make
+  args:
+    chdir: "{{build_dir}}/sdl"
+

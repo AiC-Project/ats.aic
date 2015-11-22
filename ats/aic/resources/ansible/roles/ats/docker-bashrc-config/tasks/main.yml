@@ -1,0 +1,17 @@
+---
+# vim: set ft=ansible:
+
+- name: set docker connection envvars
+  become: yes
+  become_user: "{{deploy_user}}"
+  lineinfile:
+    dest: /home/{{deploy_user}}/.bashrc
+    line: "{{item.line}}"
+    regexp: "{{item.regexp}}"
+  with_items:
+    -
+      line: "export DOCKER_HOST=tcp://{{sdl_hostname}}:2376"
+      regexp: "^export DOCKER_HOST="
+    -
+      line: "export DOCKER_TLS_VERIFY=true"
+      regexp: "^export DOCKER_TLS_VERIFY="

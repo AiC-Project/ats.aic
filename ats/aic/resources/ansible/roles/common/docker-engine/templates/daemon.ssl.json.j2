@@ -1,0 +1,16 @@
+{
+  "dns": ["8.8.8.8", "8.8.4.4"],
+  "storage-driver": "aufs",
+  "mtu": 1400,
+  "graph": "/data/docker",
+  "hosts": {{ docker_hosts | to_json }},
+  "tlscacert": "/etc/docker/ca.pem",
+  "tlscert": "/etc/docker/server-cert.pem",
+  "tlskey": "/etc/docker/server-key.pem",
+  "tlsverify": true,
+  "log-driver": "json-file",
+  "log-opts": {
+    "max-size": "10m",
+    "max-file": "5"
+  }
+}

@@ -1,0 +1,11 @@
+# vim: set ft=ansible:
+
+- name: dependencies to build/debug the Player
+  # Everything else in a container
+  become: yes
+  become_user: root
+  apt:
+    name: "{{item}}"
+    state: present
+  with_items:
+    - cmake

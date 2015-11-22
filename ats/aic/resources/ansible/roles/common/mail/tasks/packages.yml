@@ -1,0 +1,30 @@
+---
+# vim: set ft=ansible:
+
+- name: configure postfix mailname
+  become: yes
+  become_user: root
+  debconf:
+    name: postfix
+    question: postfix/mailname
+    value: "{{ansible_hostname}}"
+    vtype: string
+
+- name: configure postfix mailer type
+  become: yes
+  become_user: root
+  debconf:
+    name: postfix
+    question: postfix/main_mailer_type
+    value: Internet Site
+    vtype: string
+
+- name: posfix package
+  become: yes
+  become_user: root
+  apt:
+    name: "{{item}}"
+    state: present
+  with_items:
+    - postfix
+

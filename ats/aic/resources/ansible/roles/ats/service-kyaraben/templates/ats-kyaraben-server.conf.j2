@@ -1,0 +1,9 @@
+[program:ats-kyaraben-server]
+user = {{deploy_user}}
+command = {{bin}}/kyaraben-server --db-update
+environment = {{service_environment | to_supervisor_environment}}
+autostart = true
+autorestart = true
+stdout_logfile = {{log_dir}}/%(program_name)s.log
+redirect_stderr = true
+umask = 077

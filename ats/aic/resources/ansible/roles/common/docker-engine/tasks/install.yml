@@ -1,0 +1,47 @@
+---
+# vim: set ft=ansible:
+
+- name: add docker ppa key
+  become: yes
+  become_user: root
+  apt_key:
+    keyserver: hkp://keyserver.ubuntu.com:80
+    id: 58118E89F3A912897C070ADBF76221572C52609D
+
+- name: add docker ppa
+  become: yes
+  become_user: root
+  apt_repository:
+    repo: deb https://apt.dockerproject.org/repo ubuntu-{{ ansible_lsb.codename }} main
+    state: present
+
+- name: upgrade packages
+  become: yes
+  become_user: root
+  apt:
+    update_cache: yes
+    upgrade: dist
+
+- name: install docker package
+  become: yes
+  become_user: root
+  apt:
+    name: "{{item}}"
+    state: present
+  with_items:
+    - docker-engine=1.12.6-0~ubuntu-xenial
+    # no loopback..
+    - linux-image-extra-{{ ansible_kernel }}
+    - linux-image-extra-virtual
+  notify:
+    - reload systemd
+    - restart docker
+
+- name: add users to docker group
+  become: yes
+  become_user: root
+  user:
+    name: "{{deploy_user}}"
+    state: present
+    groups: docker
+

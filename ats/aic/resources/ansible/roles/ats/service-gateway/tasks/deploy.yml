@@ -1,0 +1,151 @@
+---
+# vim: set ft=ansible:
+
+- name: create directories
+  file:
+    path: "{{item}}"
+    state: directory
+    mode: 0o700
+  with_items:
+    - "{{service}}"
+    - "{{service}}/conf"
+    - "{{service}}/logs"
+    - "{{service}}/ssl"
+    - "{{src_luarocks}}"
+    - "{{src_openresty}}"
+
+
+- name: download OpenResty
+  get_url:
+    url: https://openresty.org/download/{{archive}}
+    dest: "{{src_openresty}}"
+    mode: 0o600
+    sha256sum: "{{archive_sha256sum}}"
+  register: openresty_download
+
+- name: extract OpenResty
+  when: openresty_download.changed
+  command: /bin/tar --extract --gzip --strip-components=1 --file {{archive}}
+  args:
+    chdir: "{{src_openresty}}"
+
+- name: configure OpenResty
+  when: openresty_download.changed
+  command: ./configure --prefix=/usr/local/openresty --with-http_postgres_module --with-debug
+  args:
+    chdir: "{{src_openresty}}"
+
+- name: compile OpenResty
+  when: openresty_download.changed
+  command: make
+  args:
+    chdir: "{{src_openresty}}"
+
+- name: install OpenResty
+  become_user: root
+  when: openresty_download.changed
+  command: make install
+  args:
+    chdir: "{{src_openresty}}"
+
+- name: download luarocks
+  get_url:
+    url: https://luarocks.org/releases/luarocks-2.2.0.tar.gz
+    dest: "{{src_luarocks}}/luarocks.tar.gz"
+    sha256sum: 9b1a4ec7b103e2fb90a7ba8589d7e0c8523a3d6d54ac469b0bbc144292b9279c
+  register: luarocks_download
+
+- name: extract luarocks
+  when: luarocks_download.changed
+  command: /bin/tar --extract --gzip --strip-components=1 --file luarocks.tar.gz
+  args:
+    chdir: "{{src_luarocks}}"
+
+- name: configure luarocks
+  when: luarocks_download.changed
+  command: ./configure --prefix=/usr/local/openresty/luajit --with-lua=/usr/local/openresty/luajit/ --lua-suffix=jit-2.1.0-beta2 --with-lua-include=/usr/local/openresty/luajit/include/luajit-2.1
+  args:
+    chdir: "{{src_luarocks}}"
+
+- name: compile luarocks
+  when: luarocks_download.changed
+  command: make build
+  args:
+    chdir: "{{src_luarocks}}"
+
+- name: install luarocks
+  become: yes
+  become_user: root
+  when: luarocks_download.changed
+  command: make install
+  args:
+    chdir: "{{src_luarocks}}"
+
+- name: luarocks install lua-resty-jwt
+  become: yes
+  become_user: root
+  command: /usr/local/openresty/luajit/bin/luarocks install lua-resty-jwt
+  args:
+    creates: /usr/local/openresty/luajit/lib/luarocks/rocks/lua-resty-jwt
+
+- name: download authorization plugin
+  git:
+    repo: "{{git.ats.ats_authorization.repo}}"
+    version: "{{git.ats.ats_authorization.version}}"
+    dest: "{{src_luaauth}}"
+
+- name: see if key.pem is provided by the user
+  become: no
+  local_action: stat path="{{local_etc}}/ssl/key.pem"
+  register: keypem
+
+- name: copy key.pem if exists
+  copy:
+    src: "{{local_etc}}/ssl/key.pem"
+    dest: "{{service}}/ssl/key.pem"
+    mode: 0o600
+  when: keypem.stat.exists
+
+- name: see if cert.pem is provided by the user
+  become: no
+  local_action: stat path="{{local_etc}}/ssl/cert.pem"
+  register: certpem
+
+- name: copy cert.pem if exists
+  copy:
+    src: "{{local_etc}}/ssl/cert.pem"
+    dest: "{{service}}/ssl/cert.pem"
+    mode: 0o600
+  when: certpem.stat.exists
+
+- name: create self-signed ssl
+  shell: umask 077; openssl req -x509 -newkey rsa:4096 -keyout key.pem -nodes -out cert.pem -subj /C=FR/O=AiC/OU=AiC/CN={{ services.ats_gateway.hostname or hostvars['ats']['ip_floating'] }} -days 365
+  args:
+    chdir: "{{service}}/ssl/"
+    creates: "{{service}}/ssl/*.pem"
+  when: not keypem.stat.exists
+
+- name: configure openresty
+  template:
+    src: "{{item}}.j2"
+    dest: "{{service}}/conf/{{item}}"
+    mode: 0o600
+  with_items:
+    - nginx.conf
+    - mime.types
+    - auth.conf
+    - cors.conf
+  notify:
+    - restart ats.gateway
+
+- name: supervisor configuration
+  become_user: root
+  template:
+    src: "{{item}}.conf.j2"
+    dest: /etc/supervisor/conf.d/{{item}}.conf
+    mode: 0o600
+  with_items:
+    - ats-gateway
+  notify:
+    - reload supervisor
+

@@ -1,0 +1,12 @@
+---
+# vim: set ft=ansible:
+
+- name: packages to build python services
+  become: yes
+  become_user: root
+  apt:
+    name: "{{item}}"
+    state: present
+  with_items:
+    - python3.5-dev
+    - python3.5-venv

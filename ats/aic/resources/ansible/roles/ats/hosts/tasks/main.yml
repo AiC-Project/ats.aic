@@ -1,0 +1,19 @@
+---
+# vim: set ft=ansible:
+
+- name: additional hosts
+  become: yes
+  become_user: root
+  lineinfile:
+    dest: /etc/hosts
+    line: "{{item.ip}} {{item.name}}"
+    state: present
+    create: yes
+  with_items:
+    -
+      ip: "{{hostvars['ats']['ip_service']}}"
+      name: "{{ats_hostname}}"
+    -
+      ip: "{{hostvars['sdl']['ip_service']}}"
+      name: "{{sdl_hostname}}"
+

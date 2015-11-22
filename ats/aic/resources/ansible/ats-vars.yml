@@ -1,0 +1,36 @@
+---
+# vim: set ft=ansible:
+
+services:
+
+  amqp:
+    # Must use the IP address: player containers don't resolve these hostnames
+    # see http://docs.openstack.org/mitaka/networking-guide/adv-config-dns.html
+    # it's the future
+    address: "{{ hostvars['ats']['ip_service'] }}"
+
+  openstack:
+    authentication:
+      OS_AUTH_URL: "{{ lookup('env', 'OS_AUTH_URL') }}"
+      OS_CACERT: "{{ OS_CACERT_dst }}"
+    orchestration:
+      OS_TENANT_NAME: "{{ lookup('env', 'OS_TENANT_NAME') }}"
+      OS_AUTH_URL: "{{ lookup('env', 'OS_AUTH_URL') }}"
+      OS_CACERT: "{{ OS_CACERT_dst }}"
+
+  ats_authentication:
+    address: 127.0.0.1
+    port: 8081
+
+  ats_kyaraben:
+    address: 127.0.0.1
+    port: 8084
+
+  ats_senza:
+    address: 127.0.0.1
+    port: 8083
+
+  ats_gateway:
+    hostname: "{{ HOSTNAME | default() }}"
+    port: 8443
+

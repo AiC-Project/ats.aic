@@ -1,0 +1,27 @@
+---
+# vim: set ft=ansible:
+
+- name: postgres packages
+  become: yes
+  become_user: root
+  apt:
+    name: "{{item}}"
+    state: present
+  with_items:
+    - postgresql-9.5
+    - postgresql-server-dev-9.5
+    - python-psycopg2
+
+- name: postgres configuration
+  become: yes
+  become_user: postgres
+  copy:
+    content: |
+      local  all  postgres                 peer
+      local  all  all                      md5
+      # ngx_postgres does not support unix sockets
+      host   all  nginx     127.0.0.1/32   md5
+    dest: /etc/postgresql/9.5/main/pg_hba.conf
+    mode: 0o600
+  notify:
+  - restart postgres

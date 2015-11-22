@@ -1,0 +1,23 @@
+[unix_http_server]
+file = {{workspace}}/supervisor.sock
+chmod = 0700
+username = admin
+password = {{ lookup('password', secrets_dir + '/supervisor chars=ascii_letters,digits') }}
+
+[supervisord]
+user = {{deploy_user}}
+logfile = {{log_dir}}/supervisord.log
+pidfile = {{workspace}}/supervisord.pid
+childlogdir = {{log_dir}}
+
+[rpcinterface:supervisor]
+supervisor.rpcinterface_factory = supervisor.rpcinterface:make_main_rpcinterface
+
+[supervisorctl]
+serverurl = unix://{{workspace}}/supervisor.sock
+username = admin
+password = {{ lookup('password', secrets_dir + '/supervisor chars=ascii_letters,digits') }}
+
+[include]
+files = /etc/supervisor/conf.d/*.conf
+

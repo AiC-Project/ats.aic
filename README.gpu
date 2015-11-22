@@ -1,0 +1,80 @@
+
+==== on the sdl host: ====
+
+apt install tinc
+
+mkdir /etc/tinc/gpuvpn
+
+cat <<EOT >/etc/tinc/gpuvpn/tinc.conf
+BindToInterface = ens3
+Port = 1194
+Name = sdl
+Compression = 10
+EOT
+
+cat <<EOT >/etc/tinc/gpuvpn/tinc-up
+#!/bin/sh
+ifconfig $INTERFACE 192.168.100.1 netmask 255.255.0.0
+EOT
+
+chmod 755 /etc/tinc/gpuvpn/tinc-up
+
+mkdir /etc/tinc/gpuvpn/hosts
+
+echo <<EOT >/etc/tinc/gpuvpn/hosts/sdl
+Address = 10.50.0.165
+Port = 1194
+Subnet = 192.168.100.0/24
+Subnet = 10.5.0.0/16
+Subnet = 10.6.0.0/16
+EOT
+
+tincd -n gpuvpn -K
+
+echo "gpuvpn" >>/etc/tinc/nets.boot
+
+==== on the aicvideo host: ====
+
+echo <<EOT >>/etc/rc.local
+tincd -n gpuvpn
+sleep 5
+service docker restart
+EOT
+
+mkdir /etc/tinc/gpuvpn
+
+cat <<EOT >/etc/tinc/gpuvpn/tinc.conf
+BindToInterface = eno1
+ConnectTo = sdl
+Port = 1194
+Name = aicvideo
+Compression = 11
+EOT
+
+cat <<EOT >/etc/tinc/gpuvpn/tinc-up
+#!/bin/sh
+
+ifconfig $INTERFACE 192.168.100.8 netmask 255.255.0.0
+ip route add 10.5.0.0/16 via 192.168.100.1
+ip route add 10.6.0.0/16 via 192.168.100.1
+EOT
+
+chmod 755 /etc/tinc/gpuvpn/tinc-up
+
+mkdir /etc/tinc/gpuvpn/hosts
+
+echo <<EOT >/etc/tinc/gpuvpn/hosts/aicvideo
+Port = 1194
+Subnet = 192.168.100.8/32
+EOT
+
+tincd -n gpuvpn -K
+
+
+=====
+
+Important: copy hosts/sdl to aicvideo, and hosts/aicvideo to sdl.
+
+=====
+
+

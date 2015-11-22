@@ -1,0 +1,15 @@
+---
+# vim: set ft=ansible:
+
+- set_fact:
+    src_dir: "{{workspace}}/src"
+
+- name: mkdir workspace directories
+  file:
+    path: "{{item}}"
+    state: directory
+    mode: 0o700
+  with_items:
+    - "{{workspace}}"
+    - "{{src_dir}}"
+

@@ -1,0 +1,10 @@
+---
+# vim: set ft=ansible:
+
+- name: restart RabbitMQ
+  become: yes
+  become_user: root
+  service:
+    name: rabbitmq-server
+    state: restarted
+

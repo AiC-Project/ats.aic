@@ -1,0 +1,87 @@
+---
+# vim: set ft=ansible:
+
+- name: install RabbitMQ
+  apt:
+    name: "{{item}}"
+    state: present
+  with_items:
+  - rabbitmq-server
+
+- name: download plugin 'rabbitmq_delayed_message_exchange'
+  # https://github.com/rabbitmq/rabbitmq-delayed-message-exchange
+  #
+  # A user can declare an exchange with the type x-delayed-message and then
+  # publish messages with the custom header x-delay expressing in milliseconds a
+  # delay time for the message. The message will be delivered to the respective
+  # queues after x-delay milliseconds.
+  #
+  # NB - upgrade plugin when upgrading rabbitmq to 3.6
+  get_url:
+    url: http://www.rabbitmq.com/community-plugins/v3.5.x/rabbitmq_delayed_message_exchange-0.0.1-rmq3.5.x-9bf265e4.ez
+    dest: /usr/lib/rabbitmq/lib/rabbitmq_server-3.5.7/plugins/
+    sha256sum: 87dff866bfd671a4e231557514f7e5a9e2f9ff7f898e2c2822614bd97c6d5137
+
+- name: enable RabbitMQ plugins
+  rabbitmq_plugin:
+    names: rabbitmq_management,rabbitmq_tracing,rabbitmq_delayed_message_exchange,rabbitmq_shovel,rabbitmq_shovel_management
+    state: enabled
+  notify:
+  - restart RabbitMQ
+
+- name: create rabbitmq TLS dir
+  file:
+    path: /etc/rabbitmq/ssl
+    state: directory
+    mode: 0o700
+    owner: rabbitmq
+
+- name: create rabbitmq TLS key
+  shell: umask 077; openssl req -x509 -newkey rsa:4096 -keyout key.pem -nodes -out cert.pem -subj /C=FR/O=AiC/OU=AiC/CN={{ services.ats_gateway.hostname or hostvars['ats']['ip_floating'] }} -days 365
+  args:
+    chdir: "/etc/rabbitmq/ssl/"
+    creates: "/etc/rabbitmq/ssl/*.pem"
+
+- name: configure RabbitMQ
+  template:
+    src: rabbitmq.config.j2
+    dest: /etc/rabbitmq/rabbitmq.config
+
+- name: create aic rabbitmq vhost
+  rabbitmq_vhost:
+    name: /
+    state: present
+
+- name: add kyaraben user (server + worker)
+  rabbitmq_user:
+    user: kyaraben
+    force: yes
+    password: "{{ lookup('password', secrets_dir + '/amqp/kyaraben length=32 chars=ascii_letters,digits') }}"
+    tags: administrator
+    permissions:
+      -
+        vhost: /
+        # a bit more permissive than strictly needed, see
+        # https://www.rabbitmq.com/access-control.html
+        configure_priv: ^android-events.*|orchestration.*$
+        read_priv: ^android-events.*|orchestration.*$
+        write_priv: ^android-events.*|orchestration.*$
+    state: present
+
+- name: add senza user
+  rabbitmq_user:
+    user: senza
+    password: "{{ lookup('password', secrets_dir + '/amqp/senza length=32 chars=ascii_letters,digits') }}"
+    tags: ""
+    permissions:
+      -
+        vhost: /
+        configure_priv: ""
+        write_priv: ^android-events$
+        read_priv: ""
+    state: present
+
+- name: remove guest user
+  rabbitmq_user:
+    user: guest
+    state: absent

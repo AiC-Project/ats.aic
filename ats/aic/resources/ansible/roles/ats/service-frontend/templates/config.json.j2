@@ -1,0 +1,11 @@
+{
+  "backend": {
+    "protocol": "https",
+    "host": "{{ services.ats_gateway.hostname or hostvars['ats']['ip_floating'] }}",
+    "port": {{ services.ats_gateway.port }},
+    "timeout": 5000
+  },
+  "userHome": "projects",
+  "enableImages": ["kitkat-tablet", "kitkat-mp", "lollipop-tablet", "lollipop-phone"],
+  "debug": true
+}

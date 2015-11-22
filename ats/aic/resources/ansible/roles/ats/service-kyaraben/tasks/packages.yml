@@ -1,0 +1,12 @@
+---
+# vim: set ft=ansible:
+
+- name: metadata tool packages
+  become: yes
+  become_user: root
+  apt:
+    name: "{{item}}"
+    state: present
+  with_items:
+    - aapt
+

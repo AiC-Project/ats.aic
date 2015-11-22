@@ -1,0 +1,15 @@
+---
+# vim: set ft=ansible:
+
+venv: "{{services_dir}}/senza"
+bin: "{{venv}}/bin"
+
+default_environment:
+  SENZA_LOG_JSONFORMAT: True
+  SENZA_SERVER_LISTEN_ADDRESS: "{{ services.ats_senza.address }}"
+  SENZA_SERVER_LISTEN_PORT: "{{ services.ats_senza.port }}"
+  SENZA_AMQP_HOSTNAME: "{{ services.amqp.address }}"
+  SENZA_AMQP_USERNAME: senza
+  SENZA_AMQP_PASSWORD: "{{ lookup('password', secrets_dir + '/amqp/senza length=32') }}"
+
+service_environment: "{{default_environment | combine(override_environment.ats_senza)}}"

@@ -1,0 +1,279 @@
+heat_template_version: 2014-10-16
+
+description: Deploy infrastructure (networking, security groups etc.) for the AIC tenant
+
+parameters:
+  floating_net:
+    type: string
+  key_name:
+    type: string
+
+outputs:
+  service_router_ip:
+    value: {get_attr: [aic_service_router, external_gateway_info, external_fixed_ips, 0, ip_address]}
+    description: IP of the AiC service router
+  android_router_ip:
+    value: {get_attr: [aic_android_router, external_gateway_info, external_fixed_ips, 0, ip_address]}
+    description: IP of the AiC android router
+
+
+# Beware, in OpenStack network names are not unique. It's up to you to verify
+# that you don't have multiple networks named "aic-service-net" and so on in
+# the same tenant.
+
+resources:
+
+  aic_service_router:
+    # Linux VMs go though this router.
+    type: OS::Neutron::Router
+    properties:
+      external_gateway_info: { network: { get_param: 'floating_net' } }
+      name: aic-service-router
+
+  aic_android_router:
+    # Android VMs go though this router.
+    type: OS::Neutron::Router
+    properties:
+      external_gateway_info: { network: { get_param: 'floating_net' } }
+      name: aic-android-router
+
+  #----------------------------------------------------------#
+  # Used by the Linux VMs and player containers.
+  #----------------------------------------------------------#
+
+  aic_service_net:
+    type: OS::Neutron::Net
+    properties:
+      name: aic-service-net
+
+  aic_service_subnet:
+    type: OS::Neutron::Subnet
+    properties:
+      name: aic-service-subnet
+      network_id: { get_resource: aic_service_net }
+      cidr: "10.5.0.0/16"
+      dns_nameservers: [ "8.8.8.8", "8.8.4.4" ]
+
+  aic_service_subnet_interface:
+    type: OS::Neutron::RouterInterface
+    properties:
+      router_id: { get_resource: aic_service_router }
+      subnet: { get_resource: aic_service_subnet }
+
+  #----------------------------------------------------------#
+  # Used by the Android VMs to connect to player containers.
+  # The video stream is also exposed in this network.
+  #----------------------------------------------------------#
+ 
+  aic_player_net:
+    type: OS::Neutron::Net
+    properties:
+      name: aic-player-net
+
+  aic_player_subnet:
+    type: OS::Neutron::Subnet
+    properties:
+      name: aic-player-subnet
+      network_id: { get_resource: aic_player_net }
+      cidr: "10.6.0.0/16"
+      dns_nameservers: []
+      gateway_ip: ""
+
+  #----------------------------------------------------------#
+  # Used by the Android VMs to attach the Wi-Fi interface.
+  #----------------------------------------------------------#
+
+  aic_wifi_net:
+    type: OS::Neutron::Net
+    properties:
+      name: aic-wifi-net
+
+  aic_wifi_subnet:
+    type: OS::Neutron::Subnet
+    properties:
+      name: aic-wifi-subnet
+      network_id: { get_resource: aic_wifi_net }
+      cidr: "10.7.0.0/16"
+      dns_nameservers: [ "8.8.8.8", "8.8.4.4" ]
+
+  aic_wifi_subnet_interface:
+    type: OS::Neutron::RouterInterface
+    properties:
+      router_id: { get_resource: aic_android_router }
+      subnet: { get_resource: aic_wifi_subnet }
+
+  #----------------------------------------------------------#
+  # Used by the Android VMs to attach the GSM interface.
+  #----------------------------------------------------------#
+
+  aic_mobile_net:
+    type: OS::Neutron::Net
+    properties:
+      name: aic-mobile-net
+
+  aic_mobile_subnet:
+    type: OS::Neutron::Subnet
+    properties:
+      name: aic-mobile-subnet
+      network_id: { get_resource: aic_mobile_net }
+      cidr: "10.8.0.0/16"
+      dns_nameservers: [ "8.8.8.8", "8.8.4.4" ]
+
+  aic_mobile_subnet_interface:
+    type: OS::Neutron::RouterInterface
+    properties:
+      router_id: { get_resource: aic_android_router }
+      subnet: { get_resource: aic_mobile_subnet }
+
+  #----------------------------------------------------------#
+  # Security groups
+  #----------------------------------------------------------#
+
+  icmp_sec:
+    # MTU discovery and connectivity testing.
+    type: OS::Neutron::SecurityGroup
+    properties:
+      name: icmp-sec
+      description: Allow ping from anywhere
+      rules:
+        - protocol: icmp
+          remote_mode: remote_ip_prefix
+          remote_ip_prefix: 0.0.0.0/0
+
+  controller_sec:
+    # Linux VM to build and install the services.
+    type: OS::Neutron::SecurityGroup
+    properties:
+      name: controller-sec
+      description: >
+        Security group for controller nodes
+        (to build code, install and monitor other service nodes)
+
+  kyaraben-sec:
+    # Orchestration service.
+    type: OS::Neutron::SecurityGroup
+    properties:
+      name: kyaraben-sec
+      description: >
+        Security group for the ATS orchestrator
+
+  sdlplayer_sec:
+    # Docker host for player containers.
+    # this group is used in both service and player networks
+    type: OS::Neutron::SecurityGroup
+    properties:
+      name: sdlplayer-sec
+      description: Security group for sdlplayer nodes
+      rules:
+        # Video + Audio
+        - protocol: tcp
+          remote_mode: remote_group_id
+          remote_group_id: { get_resource: gateway_sec }
+          # The range comes from /proc/sys/net/ipv4/ip_local_port_range
+          # and can be changed by adding "echo net.ipv4.ip_local_port_range=32768 60999"
+          # to /etc/sysctl.conf
+          port_range_min: 10000
+          port_range_max: 65000
+
+  xtext_sec:
+    type: OS::Neutron::SecurityGroup
+    properties:
+      name: xtext-sec
+      description: Security group for Xtext
+      rules:
+        - protocol: tcp
+          remote_mode: remote_group_id
+          remote_group_id: { get_resource: gateway_sec }
+          port_range_min: 8080
+          port_range_max: 8080
+
+  amqp_sec:
+    # Rabbitmq
+    type: OS::Neutron::SecurityGroup
+    properties:
+      name: amqp-sec
+      description: AMQP server
+      rules:
+        # AMQP
+        - protocol: tcp
+          remote_mode: remote_group_id
+          remote_group_id: { get_resource: sdlplayer_sec }
+          port_range_min: 5672
+          port_range_max: 5672
+
+  gateway_sec:
+    # Web server / reverse proxy
+    type: OS::Neutron::SecurityGroup
+    properties:
+      name: gateway-sec
+      description: API Gateway, Web server
+      rules:
+        # HTTP
+        - protocol: tcp
+          remote_mode: remote_ip_prefix
+          remote_ip_prefix: 0.0.0.0/0
+          port_range_min: 8443
+          port_range_max: 8443
+
+  ansible-host-sec:
+    # Any node that must controlled via ansible
+    type: OS::Neutron::SecurityGroup
+    properties:
+      name: ansible-host-sec
+      description: >
+        Security group for nodes that are deployed with Ansible
+        (including the controller)
+      rules:
+        # from the outside
+        - protocol: tcp
+          remote_mode: remote_ip_prefix
+          remote_ip_prefix: 0.0.0.0/0
+          port_range_min: 22
+          port_range_max: 22
+        # from a controller node
+        - protocol: tcp
+          remote_mode: remote_group_id
+          remote_group_id: { get_resource: controller_sec }
+          port_range_min: 22
+          port_range_max: 22
+
+  docker-engine-sec:
+    # 2375: HTTP, 2376: HTTPS
+    type: OS::Neutron::SecurityGroup
+    properties:
+      name: docker-engine-sec
+      description: >
+        Security group for docker engines
+      rules:
+        - protocol: tcp
+          remote_mode: remote_group_id
+          remote_group_id: { get_resource: kyaraben-sec }
+          port_range_min: 2376
+          port_range_max: 2376
+
+  android_sec:
+    # Assigned to all Android VMs from the 'android.yaml' template
+    type: OS::Neutron::SecurityGroup
+    properties:
+      name: android-sec
+      description: Security group for Android VMs
+      rules:
+        - protocol: tcp
+          remote_mode: remote_group_id
+          remote_group_id: { get_resource: sdlplayer_sec }
+          port_range_min: 1
+          port_range_max: 65535
+
+  android_sec_dev:
+    # For development.
+    # Assigned to all Android VMs from the less secure 'android-dev.yaml' template
+    type: OS::Neutron::SecurityGroup
+    properties:
+      name: android-sec-dev
+      description: Security group for Android VMs (development)
+      rules:
+        - protocol: tcp
+          remote_mode: remote_ip_prefix
+          remote_ip_prefix: 0.0.0.0/0
+          port_range_min: 1
+          port_range_max: 65535

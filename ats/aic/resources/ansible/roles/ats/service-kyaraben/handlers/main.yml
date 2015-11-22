@@ -1,0 +1,8 @@
+---
+# vim: set ft=ansible:
+
+- name: reload supervisor
+  become: yes
+  become_user: root
+  command: supervisorctl reload
+

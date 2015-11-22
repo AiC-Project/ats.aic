@@ -1,0 +1,71 @@
+---
+# vim: set ft=ansible:
+
+- name: Deploy a controller server (build + admin)
+
+  hosts: controller
+  force_handlers: True
+
+  vars:
+    - ansible_ssh_pipelining: yes
+    - deploy_user: "{{controller_user}}"
+    - workspace: /home/{{deploy_user}}/aic
+    - secrets_docker_tls: "{{secrets_dir}}/docker/tls"
+
+  roles:
+    #
+    # Common roles, user and mail setup
+    #
+
+    - role: common/exit-if-apt-running
+    - role: common/exit-if-local
+    - role: common/create-secrets
+    - role: common/hosts
+    - role: common/mail
+      root_alias: "{{admin_email}}"
+    -
+      role: common/create-user
+      username: "{{deploy_user}}"
+
+    #
+    # Workspace and AiC deployment
+    #
+
+    -
+      role: common/git
+      become: yes
+      become_user: "{{deploy_user}}"
+    -
+      role: controller/workspace
+      become: yes
+      become_user: "{{deploy_user}}"
+    -
+      role: controller/atsaic
+      become: yes
+      become_user: "{{deploy_user}}"
+    - role: controller/environment
+      become: yes
+      become_user: "{{deploy_user}}"
+    - role: common/build-frontend-dep
+    - role: common/build-player-dep
+
+    #
+    # Docker, docker-compose, etc.
+    #
+
+    -
+      role: common/docker-engine
+      docker_hosts:
+        - fd://
+        - unix:///var/run/docker.sock
+      docker_conf_suffix: ""
+    - role: common/docker-compose
+
+    #
+    # Reboot if the kernel has been upgraded, notify the admin
+    #
+
+    - role: common/reboot-if-required
+      reboot_ip: "{{ hostvars['controller']['ip_floating'] }}"
+    - role: common/mail-notification
+

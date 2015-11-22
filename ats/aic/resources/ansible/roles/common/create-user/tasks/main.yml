@@ -1,0 +1,17 @@
+---
+# vim: set ft=ansible:
+
+- name: add group
+  group:
+    name: "{{username}}"
+    state: present
+  become: yes
+  become_user: root
+
+- name: add user
+  user:
+    name: "{{username}}"
+    state: present
+    group: "{{username}}"
+  become: yes
+  become_user: root

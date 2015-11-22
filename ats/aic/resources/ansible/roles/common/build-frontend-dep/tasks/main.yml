@@ -1,0 +1,27 @@
+---
+# vim: set ft=ansible:
+
+- name: add nodejs ppa key
+  become: yes
+  become_user: root
+  apt_key:
+    url: https://deb.nodesource.com/gpgkey/nodesource.gpg.key
+    state: present
+
+- name: add nodejs ppa
+  become: yes
+  become_user: root
+  apt_repository:
+    repo: deb https://deb.nodesource.com/node_5.x xenial main
+    state: present
+
+- name: dependencies to build the Web frontend
+  become: yes
+  become_user: root
+  apt:
+    name: "{{item}}"
+    state: present
+    update_cache: yes
+  with_items:
+    - nodejs
+

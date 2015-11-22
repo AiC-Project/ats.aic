@@ -1,0 +1,16 @@
+---
+# vim: set ft=ansible:
+
+- name: packages to build ats.aic
+  become: yes
+  become_user: root
+  apt:
+    name: "{{item}}"
+    state: present
+  with_items:
+    - build-essential
+    - python-virtualenv
+    - python2.7-dev
+    - libgmp-dev
+    - libffi-dev
+    - libssl-dev

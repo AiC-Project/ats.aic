@@ -1,0 +1,11 @@
+---
+# vim: set ft=ansible:
+
+- name: restart postgres
+  become: yes
+  become_user: root
+  service:
+    name: postgresql
+    state: restarted
+
+

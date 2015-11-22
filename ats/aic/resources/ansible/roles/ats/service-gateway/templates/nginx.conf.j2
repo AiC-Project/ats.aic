@@ -1,0 +1,281 @@
+# vim: set ft=nginx:
+
+daemon off;
+
+#user  nobody;
+worker_processes  1;
+
+error_log {{log_dir}}/ats-gateway-error.log info;
+#error_log  logs/error.log  notice;
+
+pid        {{log_dir}}/nginx.pid;
+
+
+events {
+    worker_connections  1024;
+}
+
+env JWT_SECRET;
+
+http {
+    include       mime.types;
+    default_type  application/octet-stream;
+
+    log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+                      '$status $body_bytes_sent "$http_referer" '
+                      '"$http_user_agent" "$http_x_forwarded_for"';
+
+# For a better json log, see https://github.com/jiaz/nginx-http-json-log
+# and https://github.com/openresty/rds-json-nginx-module
+
+#    log_format json1 '{ "time": "$time_iso8601", '
+#                     '"remote_addr": "$remote_addr", '
+#                     '"remote_user": "$remote_user", '
+#                     '"body_bytes_sent": "$body_bytes_sent", '
+#                     '"request_time": "$request_time", '
+#                     '"status": "$status", '
+#                     '"request": "$request", '
+#                     '"request_method": "$request_method", '
+#                     '"http_referrer": "$http_referer", '
+#                     '"http_user_agent": "$http_user_agent" }';
+
+#    log_format json2 '{ "@timestamp": "$time_iso8601", '
+#                     '"@fields": { '
+#                     '"remote_addr": "$remote_addr", '
+#                     '"remote_user": "$remote_user", '
+#                     '"body_bytes_sent": "$body_bytes_sent", '
+#                     '"request_time": "$request_time", '
+#                     '"status": "$status", '
+#                     '"request": "$request", '
+#                     '"request_method": "$request_method", '
+#                     '"http_referrer": "$http_referer", '
+#                     '"http_user_agent": "$http_user_agent" } }';
+
+    access_log {{log_dir}}/ats-gateway-access.log main;
+    error_log {{log_dir}}/ats-gateway-error.log info;
+
+    upstream database {
+        postgres_server  127.0.0.1 dbname=kyaraben
+                         user=nginx password={{ lookup('password', secrets_dir + '/postgres/nginx chars=ascii_letters,digits') }};
+    }
+
+    map $http_upgrade $connection_upgrade {
+        default upgrade;
+        '' close;
+    }
+
+    sendfile        on;
+    #tcp_nopush     on;
+
+    #keepalive_timeout  0;
+    keepalive_timeout  65;
+
+    gzip  on;
+
+    lua_package_path "/usr/local/openresty/luajit/share/lua/5.1/?.lua;/usr/local/openresty/lualib/?.lua;{{src_luaauth}}/?.lua;;";
+    lua_package_cpath "/usr/local/openresty/lualib/?.so";
+
+    client_max_body_size 100M;
+
+    upstream server-test {
+        server localhost:8070;
+    }
+
+    upstream server-authentication {
+        server localhost:{{ services.ats_authentication.port }};
+    }
+
+    upstream server-kyaraben {
+        server localhost:{{ services.ats_kyaraben.port }};
+    }
+
+    upstream server-senza {
+        server localhost:{{ services.ats_senza.port }};
+    }
+
+    upstream server-xtext {
+        server {{sdl_hostname}}:8080;
+    }
+
+    server {
+        listen       {{ services.ats_gateway.port }} ssl;
+        server_name  {{ services.ats_gateway.hostname or 'localhost' }};
+
+        ssl_certificate {{service}}/ssl/cert.pem;
+        ssl_certificate_key {{service}}/ssl/key.pem;
+        ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
+        ssl_prefer_server_ciphers on;
+        ssl_ciphers "EECDH+AESGCM:EDH+AESGCM:AES256+EECDH:AES256+EDH";
+        ssl_ecdh_curve secp384r1; # Requires nginx >= 1.1.0
+        ssl_session_cache shared:SSL:10m;
+        ssl_session_tickets off; # Requires nginx >= 1.5.9
+        ssl_stapling on; # Requires nginx >= 1.3.7
+        ssl_stapling_verify on; # Requires nginx => 1.3.7
+        add_header Strict-Transport-Security "max-age=63072000; includeSubdomains; preload";
+        add_header X-Frame-Options DENY;
+
+        # Prevents browsers from guessing
+        add_header X-Content-Type-Options nosniff;
+
+        # Keep alive
+        add_header X-Clacks-Overhead "GNU Terry Pratchett";
+
+        # Trace the request for debugging
+        # proxy_set_header X-Request-Id $request_id;
+
+        location ~ ^/token/check_revocation/(?<token>[a-zA-Z0-9._-]+) {
+                internal;
+                postgres_pass database;
+                postgres_escape $token_escaped $token;
+                postgres_query "SELECT EXISTS (SELECT 1 FROM jwt WHERE token=$token_escaped AND is_revoked = 0)";
+        }
+
+        location ~ ^/access/vm/(?<userid>[a-zA-Z1-9]+)/(?<avm_id>[a-zA-Z0-9]+) {
+                internal;
+                postgres_escape $userid_escaped $userid;
+                postgres_escape $avm_id_escaped $avm_id;
+                postgres_pass database;
+                postgres_query "SELECT EXISTS (SELECT 1 FROM permission_avms WHERE userid = $userid_escaped AND avm_id = $avm_id_escaped)";
+        }
+
+
+        location ~ ^/access/project/(?<userid>[a-zA-Z0-9]+)/(?<project_id>[a-zA-Z0-9]+) {
+                internal;
+                postgres_escape $userid_escaped $userid;
+                postgres_escape $project_id_escaped $project_id;
+                postgres_pass database;
+                postgres_query "SELECT EXISTS (SELECT 1 FROM permission_projects WHERE userid = $userid_escaped AND project_id = $project_id_escaped)";
+        }
+
+        location ~ ^/android/(?<avm_id>[a-zA-Z0-9]+)/screen {
+            proxy_buffering off;
+            proxy_read_timeout 3600s;
+            proxy_send_timeout 3600s;
+            # include      cors.conf;       # for frontend development
+            set_unescape_uri $http_Authorization $arg_token;
+            include      auth.conf;
+            set $result '';
+            rewrite_by_lua '
+                local cjson = require "cjson"
+                local res = ngx.location.capture("/gateway/android/" .. ngx.var.avm_id .. "/ports")
+                if res.status < 300 then
+                    local js = cjson.decode(res.body)
+                    local avm = js["avm"]
+                    ngx.var.result = avm["host"] .. ":" .. avm["screen_port"]
+                end
+            ';
+            proxy_pass http://$result/websockify/;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection $connection_upgrade;
+        }
+
+        location ~ ^/android/(?<avm_id>[a-zA-Z0-9]+)/audio {
+            proxy_buffering off;
+            proxy_read_timeout 3600s;
+            proxy_send_timeout 3600s;
+            # include      cors.conf;       # for frontend development
+            set_unescape_uri $http_Authorization $arg_token;
+            include      auth.conf;
+            set $result '';
+            rewrite_by_lua '
+                local cjson = require "cjson"
+                local res = ngx.location.capture("/gateway/android/" .. ngx.var.avm_id .. "/ports")
+                if res.status < 300 then
+                    local js = cjson.decode(res.body)
+                    local avm = js["avm"]
+                    ngx.var.result = avm["host"] .. ":" .. avm["sound_port"]
+                end
+            ';
+            proxy_pass http://$result/test.webm;
+        }
+
+        location ~ ^/gateway {
+            # include      cors.conf;       # for frontend development
+            proxy_buffering off;
+            proxy_pass http://server-kyaraben;
+        }
+
+        location ~ ^/user/login {
+            # include      cors.conf;       # for frontend development
+            proxy_buffering off;
+            proxy_pass http://server-authentication;
+        }
+
+        location ~ ^/user/logout {
+            # include      cors.conf;       # for frontend development
+            include      auth.conf;
+            proxy_buffering off;
+            proxy_pass http://server-authentication;
+        }
+
+        location ~ ^/user/quota {
+            # include      cors.conf;       # for frontend development
+            include      auth.conf;
+            proxy_buffering off;
+            proxy_pass http://server-kyaraben;
+        }
+
+        location ~ ^/user/whoami {
+            # include      cors.conf;       # for frontend development
+            include      auth.conf;
+            proxy_buffering off;
+            proxy_pass http://server-kyaraben;
+        }
+
+        location ~ ^/project {
+            # include      cors.conf;       # for frontend development
+            include      auth.conf;
+            proxy_buffering off;
+            proxy_pass http://server-kyaraben;
+        }
+
+        location ~ ^/android/sensors {
+            # include      cors.conf;       # for frontend development
+            include      auth.conf;
+            proxy_buffering off;
+            proxy_pass http://server-senza;
+        }
+
+        location ~ ^/android {
+            # include      cors.conf;       # for frontend development
+            include      auth.conf;
+            proxy_buffering off;
+            proxy_pass http://server-kyaraben;
+        }
+
+        location ~ ^/android/(?<avm_id>[a-zA-Z0-9]+) {
+            # include      cors.conf;       # for frontend development
+            include      auth.conf;
+            proxy_buffering off;
+            proxy_pass http://server-kyaraben;
+        }
+
+        location ~ ^/images {
+            # include      cors.conf;       # for frontend development
+            include      auth.conf;
+            proxy_buffering off;
+            proxy_pass http://server-kyaraben;
+        }
+
+        location ~ ^/testing {
+            # include      cors.conf;       # for frontend development
+            include      auth.conf;
+            proxy_buffering off;
+            proxy_pass http://server-test;
+        }
+
+        location ~ ^/xtext {
+            #include      cors.conf;       # for frontend development
+            #include      auth.conf;
+            proxy_buffering off;
+            rewrite ^/xtext/(.*) /xtext-service/$1 break;
+            proxy_pass http://server-xtext;
+        }
+
+        location / {
+            root   {{services_dir}}/frontend/build;
+            index  index.html index.htm;
+        }
+    }
+}

@@ -1,0 +1,13 @@
+---
+# vim: set ft=ansible:
+
+- name: wait for mail service
+  wait_for:
+    port: 25
+    delay: 10
+
+- name: test mail
+  mail:
+    to: root
+    subject: Ansible report
+    body: System {{ ansible_hostname }} has been successfully provisioned.

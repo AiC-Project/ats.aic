@@ -1,0 +1,23 @@
+---
+# vim: set ft=ansible:
+
+- name: create directories
+  file:
+    path: "{{item}}"
+    state: directory
+    mode: 0o700
+  with_items:
+    - "{{service}}"
+
+- name: copy frontend binaries
+  unarchive:
+    src: "{{local_images}}/frontend.tgz"
+    dest: "{{service}}/"
+    copy: yes
+
+- name: configure frontend
+  template:
+    src: "config.json.j2"
+    dest: "{{service}}/build/config.json"
+    mode: 0o600
+

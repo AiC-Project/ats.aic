@@ -1,0 +1,6 @@
+---
+# vim: set ft=ansible:
+
+OS_CACERT_src: "{{ lookup('env', 'OS_CACERT') }}"
+OS_CACERT_dst: "{{workspace}}/etc/{{ lookup('env', 'OS_CACERT') | basename }}"
+

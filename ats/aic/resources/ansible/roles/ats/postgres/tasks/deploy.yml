@@ -1,0 +1,55 @@
+---
+# vim: set ft=ansible:
+
+- name: postgres database
+  become: yes
+  become_user: postgres
+  postgresql_db:
+    name: kyaraben
+    state: present
+    encoding: UTF-8
+
+- name: create kyaraben user
+  become: yes
+  become_user: postgres
+  postgresql_user:
+    db: kyaraben
+    name: kyaraben
+    encrypted: yes
+    password: "{{ lookup('password', secrets_dir + '/postgres/kyaraben chars=ascii_letters,digits') }}"
+    priv: ALL
+    state: present
+
+- name: create nginx user
+  become: yes
+  become_user: postgres
+  postgresql_user:
+    db: kyaraben
+    name: nginx
+    encrypted: yes
+    password: "{{ lookup('password', secrets_dir + '/postgres/nginx chars=ascii_letters,digits') }}"
+    role_attr_flags: NOSUPERUSER,NOCREATEROLE,NOCREATEDB
+    state: present
+
+- name: create atsauth user
+  become: yes
+  become_user: postgres
+  postgresql_user:
+    db: kyaraben
+    name: atsauth
+    encrypted: yes
+    password: "{{ lookup('password', secrets_dir + '/postgres/atsauth chars=ascii_letters,digits') }}"
+    role_attr_flags: NOSUPERUSER,NOCREATEROLE,NOCREATEDB
+    state: present
+
+- name: cron job to garbage collect expired tickets
+  become: yes
+  become_user: root
+  cron:
+    name: garbage collect tokens
+    minute: "0"
+    hour: "1"
+    user: postgres
+    job: psql kyaraben -c "DELETE FROM jwt WHERE expires_at < (current_timestamp - '1 week'::interval);"
+    state: present
+

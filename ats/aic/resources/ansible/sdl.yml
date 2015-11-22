@@ -1,0 +1,50 @@
+---
+# vim: set ft=ansible:
+
+- name: Deploy an SDL server (docker host)
+
+  hosts: sdl
+  force_handlers: True
+
+  vars:
+    - ansible_ssh_pipelining: yes
+    - deploy_user: "{{sdl_user}}"
+    - workspace: /home/{{deploy_user}}/aic
+    - secrets_docker_tls: "{{secrets_dir}}/docker/tls"
+
+  roles:
+    #
+    # Common roles, user and mail setup
+    #
+
+    - role: common/exit-if-apt-running
+    - role: common/exit-if-local
+    - role: common/create-secrets
+    - role: common/hosts
+    - role: player/hosts
+    - role: common/mail
+      root_alias: "{{admin_email}}"
+    - role: common/create-user
+      username: "{{deploy_user}}"
+
+    #
+    # Docker, docker-compose, etc.
+    #
+
+    - role: common/docker-create-tls-keys
+      delegate_to: 127.0.0.1
+    - role: player/docker-key-server
+    - role: common/docker-engine
+      docker_hosts:
+        - unix:///var/run/docker.sock
+        - tcp://{{sdl_hostname}}:2376
+      docker_conf_suffix: ".ssl"
+
+    #
+    # Reboot if the kernel has been upgraded, notify the admin
+    #
+
+    - role: common/reboot-if-required
+      reboot_ip: "{{ hostvars['ats']['ip_floating'] }}"
+    - role: common/mail-notification
+

@@ -1,0 +1,18 @@
+---
+# vim: set ft=ansible:
+
+venv: "{{services_dir}}/auth"
+bin: "{{venv}}/bin"
+
+default_environment:
+  ATSAUTH_LOG_JSONFORMAT: True
+  ATSAUTH_SERVER_LISTEN_ADDRESS: "{{ services.ats_authentication.address }}"
+  ATSAUTH_SERVER_LISTEN_PORT: "{{ services.ats_authentication.port }}"
+  ATSAUTH_SERVER_JWT_SECRET: "{{ lookup('password', secrets_dir + '/auth/jwt_secret chars=ascii_letters,digits') }}"
+  ATSAUTH_AUTHENTICATION_OS_AUTH_URL: "{{ services.openstack.authentication.OS_AUTH_URL }}"
+  ATSAUTH_AUTHENTICATION_OS_CACERT: "{{ services.openstack.orchestration.OS_CACERT }}"
+  ATSAUTH_AUTHENTICATION_OS_USER_TENANT_NAME: ""
+  ATSAUTH_AUTHENTICATION_INSECURE: False
+  ATSAUTH_DB_DSN: host=/var/run/postgresql dbname=kyaraben user=atsauth password={{ lookup('password', secrets_dir + '/postgres/atsauth chars=ascii_letters,digits') }}
+
+service_environment: "{{default_environment | combine(override_environment.ats_authentication)}}"

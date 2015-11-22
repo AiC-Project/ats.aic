@@ -1,0 +1,8 @@
+---
+# vim: set ft=ansible:
+
+- name: create environment.sh
+  template:
+    src: environment.sh.j2
+    dest: "{{workspace}}/environment.sh"
+

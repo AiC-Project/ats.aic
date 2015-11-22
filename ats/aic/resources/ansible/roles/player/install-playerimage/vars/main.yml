@@ -1,0 +1,5 @@
+---
+# vim: set ft=ansible:
+
+docker_images_path: "{{local_images}}/docker-images.tar"
+

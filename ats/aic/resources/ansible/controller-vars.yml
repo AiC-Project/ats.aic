@@ -1,0 +1,84 @@
+---
+# vim: set ft=ansible:
+
+cluster: dev
+
+openrc: aic-openrc.sh
+
+floating_net: net04_ext
+
+controller_hostname: "{{cluster}}-controller.openstacklocal"
+controller_user: developer
+ats_hostname: "{{cluster}}-ats.openstacklocal"
+ats_user: developer
+sdl_hostname: "{{cluster}}-sdl.openstacklocal"
+sdl_user: developer
+
+worker_numprocs: 5
+
+# for git configuration, if you need to push. If you are using
+# a deployment key, then email and fullname don't matter.
+git_user_email: developer@rnd.alterway.fr
+git_user_fullname: John Frum Developer
+
+admin_email:
+
+#
+# the following files will be copied to the controller instance
+#
+
+git_key: git_key
+
+ssh_key_file: aic.pem
+ssh_key_name: aic
+
+additional_hosts: []
+
+git:
+
+  controller:
+    ats_aic:
+      repo: https://github.com/AiC-Project/ats.aic.git
+      version: v0.8
+
+  ats:
+    ats_client:
+      repo: https://github.com/AiC-Project/ats.client.git
+      version: v0.8
+    ats_util:
+      repo: https://github.com/AiC-Project/ats.util.git
+      version: v0.8
+    ats_authentication:
+      repo: https://github.com/AiC-Project/ats.authentication.git
+      version: v0.8
+    ats_authorization:
+      repo: https://github.com/AiC-Project/ats.authorization.git
+      version: v0.8
+    ats_kyaraben:
+      repo: https://github.com/AiC-Project/ats.kyaraben.git
+      version: v0.8
+    ats_senza:
+      repo: https://github.com/AiC-Project/ats.senza.git
+      version: v0.8
+    ats_frontend:
+      repo: https://github.com/AiC-Project/frontend.git
+      version: v0.8
+      develop: false
+
+  sdl:
+    player:
+      repo: https://github.com/AiC-Project/player.git
+      version: v0.8
+    player_camera:
+      repo: https://github.com/AiC-Project/player.camera.git
+      version: v0.8
+    player_compose:
+      repo: https://github.com/AiC-Project/player.compose.git
+      version: v0.8
+    testcc:
+      repo: https://github.com/AiC-Project/ats.testcc.git
+      version: v0.8
+    dslcc:
+      repo: https://github.com/AiC-Project/ats.dslcc.git
+      version: v0.8
+

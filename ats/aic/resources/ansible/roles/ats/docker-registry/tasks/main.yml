@@ -1,0 +1,22 @@
+---
+# vim: set ft=ansible:
+
+  - name: ensure Docker Registry is running
+    become: yes
+    become_user: root
+    docker:
+      image: "registry:2"
+#      memory_limit: 1024MB
+      name: registry
+      ports:
+        - "127.0.0.1:5000:5000"
+      env:
+        REGISTRY_STORAGE_FILESYSTEM_ROOTDIRECTORY: /registry
+      volumes:
+        - /var/lib/docker-registry:/registry:rw
+      privileged: yes
+      state: reloaded
+      pull: missing
+      restart_policy: always
+    register: start_registry
+

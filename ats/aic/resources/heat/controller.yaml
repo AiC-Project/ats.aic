@@ -1,0 +1,100 @@
+heat_template_version: 2014-10-16
+
+description: Deploy an empty AIC controller
+
+parameters:
+  flavor:
+    type: string
+    default: aic.controller.tiny
+  floating_net:
+    type: string
+  key_name:
+    type: string
+  data_size:
+    type: number
+    default: 120
+
+
+resources:
+  ats:
+    type: OS::Nova::Server
+    properties:
+      name: { get_param: 'OS::stack_name' }
+      image: ubuntu-16.04-server-cloudimg-amd64-disk1.img
+      flavor: { get_param: flavor }
+      block_device_mapping: [
+        { device_name: "vdb", volume_id: { get_resource: data }},
+      ]
+      key_name: { get_param: key_name }
+      # To add a security group with floating ip:
+      networks:
+        - port: { get_resource: service_port }
+      user_data_format: RAW
+      user_data: |
+        #!/bin/sh
+
+        set -e
+
+        # Partition data volume
+
+        fdisk /dev/vdb <<EOF
+        n
+        p
+        1
+        
+        
+        w
+        EOF
+
+        # Format data volume
+        mkfs.ext4 /dev/vdb1
+
+        mkdir /data
+        echo "/dev/vdb1 /data ext4 errors=remount-ro 0 1" >> /etc/fstab
+        mount /data
+        mkdir /data/docker
+        chmod 701 /data/docker
+        mv /home /data/
+        ln -s /data/home /home
+
+        # Don't allow ssh to set server locale
+        sed -e '/AcceptEnv LANG LC_\*/ s/^#*/#/' -i /etc/ssh/sshd_config
+        service ssh restart
+
+        export DEBIAN_FRONTEND=noninteractive
+
+        # suppress "Reading database ..." messages
+        QUIET_DPKG="-o=Dpkg::Use-Pty=0"
+
+        apt-get $QUIET_DPKG -qq update
+
+        # Install Python 2 ASAP for ansible
+        apt-get $QUIET_DPKG -qq install python2.7 python-setuptools
+
+        # Install AUFS for docker-engine
+        apt-get $QUIET_DPKG -qq install linux-image-extra-$(uname -r) linux-image-extra-virtual
+
+  service_port:
+    type: OS::Neutron::Port
+    properties:
+      network: 'aic-service-net'
+      fixed_ips:
+        - subnet: 'aic-service-subnet'
+      security_groups: [ 'icmp-sec', 'controller-sec', 'ansible-host-sec' ]
+
+  data:
+    type: OS::Cinder::Volume
+    properties:
+      size: { get_param: data_size }
+
+  floating_ip:
+    type: OS::Neutron::FloatingIP
+    properties:
+      floating_network: { get_param: 'floating_net' }
+      port_id: { get_resource: service_port }
+
+
+outputs:
+  ip_floating:
+    value: { get_attr: [ floating_ip, floating_ip_address ] }
+

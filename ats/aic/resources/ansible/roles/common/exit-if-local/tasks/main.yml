@@ -1,0 +1,25 @@
+---
+# vim: set ft=ansible:
+
+# Stop the play if it is run on the local system.
+#
+# To do that, create a local file with a random name
+# and check if it's present on the remote.
+
+- name: create tmpfile
+  local_action: command mktemp
+  register: mktemp
+
+- name: see if tmpfile is on the remote
+  stat:
+    path: "{{mktemp.stdout}}"
+  register: st
+
+- name: remove tmpfile
+  local_action: file name={{mktemp.stdout}} state=absent
+
+- name: check if target == localhost
+  fail:
+    msg: You cannot run this command on the target host itself.
+  when: st.stat.exists
+

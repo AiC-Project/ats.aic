@@ -1,0 +1,6 @@
+---
+# vim: set ft=ansible:
+
+- include: config.yml
+- include: install.yml
+

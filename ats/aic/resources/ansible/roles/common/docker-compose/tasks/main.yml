@@ -1,0 +1,19 @@
+---
+# vim: set ft=ansible:
+
+- name: install python-pip
+  become: yes
+  become_user: root
+  apt:
+    name: "{{item}}"
+    state: present
+  with_items:
+    - python-pip
+
+- name: install docker-compose
+  become: yes
+  become_user: root
+  # apt install docker-compose would install docker.io
+  pip:
+    name: docker-compose==1.9.0rc3
+

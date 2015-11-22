@@ -1,0 +1,65 @@
+---
+# vim: set ft=ansible:
+
+
+- name: set ip_local_port_range
+  become: yes
+  become_user: root
+  sysctl:
+    name: net.ipv4.ip_local_port_range
+    value: 10000 65000
+    sysctl_set: yes
+    state: present
+    reload: yes
+
+- name: create /etc/docker if missing
+  become: yes
+  become_user: root
+  file:
+    path: /etc/docker
+    state: directory
+    owner: root
+    group: root
+    mode: 0o700
+
+- name: Docker daemon configuration file
+  become: yes
+  become_user: root
+  template:
+    src: daemon{{docker_conf_suffix}}.json.j2
+    dest: /etc/docker/daemon.json
+
+- name: mkdir /etc/systemd/system/docker.service.d
+  become: yes
+  become_user: root
+  file:
+    path: /etc/systemd/system/docker.service.d
+    state: directory
+    owner: root
+    group: root
+    mode: 0o700
+
+- name: set ExecStart in override.conf
+  become: yes
+  become_user: root
+  copy:
+    content: |
+      [Service]
+      ExecStart=
+      ExecStart=/usr/bin/docker daemon --config-file=/etc/docker/daemon.json
+    dest: /etc/systemd/system/docker.service.d/override.conf
+    owner: root
+    group: root
+    mode: 0o600
+  notify:
+#    - reload systemd  # need to do it ASAP
+    - restart docker
+
+# force systemd reload now, before installing docker, to avoid an apt error
+- name: force systemd reload
+  become: yes
+  become_user: root
+  command: systemctl daemon-reload
+  tags:
+    - always
+

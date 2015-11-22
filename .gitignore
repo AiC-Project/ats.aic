@@ -1,0 +1,10 @@
+__pycache__
+*.egg-info
+*.pyc
+*.swp
+/.eggs
+/build
+/dist
+/venv
+/doc/build
+/work

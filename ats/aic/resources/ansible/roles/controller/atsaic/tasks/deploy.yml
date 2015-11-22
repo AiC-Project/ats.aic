@@ -1,0 +1,37 @@
+---
+# vim: set ft=ansible:
+
+- name: install virtualenv
+  command: virtualenv -p python2.7 {{controller_venv}}
+
+- set_fact:
+    controller_bin: "{{controller_venv}}/bin"
+
+- name: clone controller code
+  git:
+    repo: "{{item.repo}}"
+    version: "{{item.version}}"
+    dest: "{{item.dest}}"
+    key_file: "{{git_key_remote}}"
+  with_items:
+    -
+      repo: "{{git.controller.ats_aic.repo}}"
+      version: "{{git.controller.ats_aic.version}}"
+      dest: "{{src_dir}}/ats.aic"
+
+- name: download repo
+  get_url:
+    url: https://storage.googleapis.com/git-repo-downloads/repo
+    dest: "{{controller_bin}}/repo"
+    mode: 0o700
+
+- name: install wheel
+  command: "{{controller_bin}}/pip install wheel"
+  with_items:
+    - "{{src_dir}}/ats.aic"
+
+- name: install controller code
+  command: "{{controller_bin}}/pip install -r requirements/dev.txt"
+  args:
+    chdir: "{{src_dir}}/ats.aic"
+

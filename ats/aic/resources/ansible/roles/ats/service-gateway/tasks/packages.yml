@@ -1,0 +1,18 @@
+---
+# vim: set ft=ansible:
+
+- name: dependencies to build the API Gateway
+  become: yes
+  become_user: root
+  apt:
+    name: "{{item}}"
+    state: present
+  with_items:
+    - build-essential
+    - libncurses5-dev
+    - libpcre3-dev
+    - libreadline-dev
+    - libssl-dev
+    - perl
+    # required to install rocks
+    - unzip
