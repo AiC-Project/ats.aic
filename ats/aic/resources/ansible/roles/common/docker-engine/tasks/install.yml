@@ -29,7 +29,7 @@
     name: "{{item}}"
     state: present
   with_items:
-    - docker-engine=1.12.6-0~ubuntu-xenial
+    - docker-engine=1.13.0-0~ubuntu-xenial
     # no loopback..
     - linux-image-extra-{{ ansible_kernel }}
     - linux-image-extra-virtual
