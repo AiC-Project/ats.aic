@@ -4,7 +4,7 @@
 service: "{{services_dir}}/gateway"
 src_openresty: "{{src_dir}}/openresty"
 src_luarocks: "{{src_dir}}/luarocks"
-src_luaauth: "{{src_dir}}/ats_luaauth"
+src_authorization: "{{src_dir}}/ats.authorization"
 
 archive: openresty-1.11.2.1.tar.gz
 archive_sha256sum: 0e55b52bf6d77ac2d499ae2b05055f421acde6bb937e650ed8f482d11cbeeb5c

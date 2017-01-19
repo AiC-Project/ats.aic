@@ -20,11 +20,11 @@
     dest: "{{src_dir}}/ats.util"
     key_file: "{{git_key_remote}}"
 
-- name: clone ats.auth
+- name: clone ats.authentication
   git:
     repo: "{{git.ats.ats_authentication.repo}}"
     version: "{{git.ats.ats_authentication.version}}"
-    dest: "{{src_dir}}/ats.auth"
+    dest: "{{src_dir}}/ats.authentication"
     key_file: "{{git_key_remote}}"
 
 - name: install wheel
@@ -33,7 +33,7 @@
 - name: install service
   command: "{{bin}}/pip install -r requirements/dev.txt"
   args:
-    chdir: "{{src_dir}}/ats.auth"
+    chdir: "{{src_dir}}/ats.authentication"
 
 - name: supervisor configuration
   become_user: root
@@ -42,7 +42,7 @@
     dest: /etc/supervisor/conf.d/{{item}}.conf
     mode: 0o600
   with_items:
-    - ats-auth
+    - ats-authentication
   notify:
     - reload supervisor
 

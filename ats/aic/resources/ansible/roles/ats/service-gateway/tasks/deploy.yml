@@ -92,7 +92,7 @@
   git:
     repo: "{{git.ats.ats_authorization.repo}}"
     version: "{{git.ats.ats_authorization.version}}"
-    dest: "{{src_luaauth}}"
+    dest: "{{src_authorization}}"
 
 - name: see if key.pem is provided by the user
   become: no

@@ -64,7 +64,7 @@
       become: yes
       become_user: "{{deploy_user}}"
     -
-      role: ats/service-auth
+      role: ats/service-authentication
       become: yes
       become_user: "{{deploy_user}}"
     -

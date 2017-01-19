@@ -72,7 +72,7 @@ http {
 
     gzip  on;
 
-    lua_package_path "/usr/local/openresty/luajit/share/lua/5.1/?.lua;/usr/local/openresty/lualib/?.lua;{{src_luaauth}}/?.lua;;";
+    lua_package_path "/usr/local/openresty/luajit/share/lua/5.1/?.lua;/usr/local/openresty/lualib/?.lua;{{src_authorization}}/?.lua;;";
     lua_package_cpath "/usr/local/openresty/lualib/?.so";
 
     client_max_body_size 100M;

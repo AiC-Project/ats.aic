@@ -1,4 +1,4 @@
-[program:ats-auth]
+[program:ats-authentication]
 user = {{deploy_user}}
 command = {{bin}}/ats-auth-server
 environment = {{service_environment | to_supervisor_environment}}
