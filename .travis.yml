@@ -6,7 +6,7 @@ install:
   - pip install --upgrade pip
   - pip install -r requirements/doc.txt
 
-script: "python setup.py build_sphinx && bash doc/scripts/publish-docs.sh"
+script: "python setup.py build_sphinx && bash .travis/publish-docs.sh"
 
 notifications:
   email: false
