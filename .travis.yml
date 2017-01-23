@@ -1,0 +1,14 @@
+language: python
+python:
+  - "3.5"
+
+install: "pip install requirements/doc.txt"
+
+script: "python setup.py build_sphinx && bash doc/scripts/publish-docs.sh"
+
+notifications:
+  email: false
+
+branches:
+  only:
+  - master
